@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU " OMB_XCCL_TYPE_STR "%s Reduce_scatter Latency Test"
 /*
- * Copyright (c) 2002-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2002-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
             NCCL_CHECK(omb_xccl_interface->ncclReduceScatter(
                 sendbuf, recvbuf, recvcount, ncclFloat, ncclSum, nccl_comm,
                 nccl_stream));
-            omb_xccl_interface->synchronize_xccl_stream(nccl_stream);
+            omb_xccl_interface->synchronize_xccl_stream();
             t_stop = MPI_Wtime();
 
             if (i >= options.skip) {

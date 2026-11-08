@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2023-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -58,8 +58,8 @@
 /*OMBOP[__ACCEL]__<options.bench>__<options.subtype>*/
 #define OMBOP__PT2PT__LAT                    "+:hvm:x:i:b:c::u:G:D:P:T:Iz::"
 #define OMBOP__PT2PT__PART_LAT               "+:hvm:x:i:b:c::u:G:D:P:T:Iz::q:"
-#define OMBOP__ACCEL__PT2PT__LAT             "+:x:i:m:d:hvc::u:G:D:T:Iz::"
-#define OMBOP__ACCEL__PT2PT__PART_LAT        "+:x:i:m:d:hvc::u:G:D:T:Iz::q:"
+#define OMBOP__ACCEL__PT2PT__LAT             "+:x:i:m:d:b:hvc::u:G:D:T:Iz::"
+#define OMBOP__ACCEL__PT2PT__PART_LAT        "+:x:i:m:d:b:hvc::u:G:D:T:Iz::q:"
 #define OMBOP__PT2PT__BW                     "+:hvm:x:i:t:W:b:c::u:G:D:P:T:Iz::"
 #define OMBOP__ACCEL__PT2PT__BW              "+:x:i:t:m:d:W:hvb:c::u:G:D:T:Iz::"
 #define OMBOP__PT2PT__LAT_MT                 "+:hvm:x:i:t:c::u:G:D:T:Iz::"

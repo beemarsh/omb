@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU " OMB_XCCL_TYPE_STR "%s Reduce Latency Test"
 /*
- * Copyright (c) 2002-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2002-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
             NCCL_CHECK(omb_xccl_interface->ncclReduce(sendbuf, recvbuf, size,
                                                       ncclFloat, ncclSum, 0,
                                                       nccl_comm, nccl_stream));
-            omb_xccl_interface->synchronize_xccl_stream(nccl_stream);
+            omb_xccl_interface->synchronize_xccl_stream();
             t_stop = MPI_Wtime();
 
             if (i >= options.skip) {

@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU MPI%s Scatter Persistent Latency Test"
 /*
- * Copyright (c) 2023-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2023-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)

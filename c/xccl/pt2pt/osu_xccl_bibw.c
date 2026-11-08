@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU " OMB_XCCL_TYPE_STR "%s Bi-Directional Bandwidth Test"
 /*
- * Copyright (c) 2002-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2002-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
                     r_buf, size, ncclChar, peer, nccl_comm, nccl_stream));
             }
             omb_xccl_interface->ncclGroupEnd();
-            omb_xccl_interface->synchronize_xccl_stream(nccl_stream);
+            omb_xccl_interface->synchronize_xccl_stream();
             if (i >= options.skip) {
                 t_end = MPI_Wtime();
                 t_total += t_end - t_start;

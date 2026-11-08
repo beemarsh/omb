@@ -1,4 +1,16 @@
-OSU Micro Benchmarks v7.5.2 (12/05/2025
+OSU Micro Benchmarks v7.5.3 (1/14/2026)
+
+* Bug Fixes
+    - Fixed a bug leading to RMA errors only being collected on rank 0
+        - Thanks to Charles Stoll & Luke Robison @Amazon for the report and patch
+    - Fixed a bug causing lat_mt not to call MPI_Finalize
+        - Thanks to Charles Stoll @Amazon for the report and patch
+    - Added support for [-b] flag on acceleration enabled pt2pt tests
+        - Thanks to Charles Stoll @Amazon for the report and patch
+    - Fixed a bug where xccl tests called osu_synchronize_nccl_stream() with an arg
+        - Thanks to Amit Ruhela @TACC for the report
+
+OSU Micro Benchmarks v7.5.2 (12/05/2025)
 
 * Bug Fixes
     - Fixed a build failure with CUDA 13

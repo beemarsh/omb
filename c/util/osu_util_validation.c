@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2023-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -406,6 +406,7 @@ static void print_failure_message(MPI_Datatype datatype, void *adr_in,
  *   validation_results: a bitmask which is updated.  User should set to 0.
  *          |=1 when failure occurred.
  *          |=2 when no validation performed.
+ *          |=4 when the validation succeeds
  * Note that addr and res might be in GPU memory or in system memory.
  * Validation will only pass if both local and remote memories were initialized
  * with atomic_data_validation_setup.
@@ -527,15 +528,18 @@ int atomic_data_validation_check(MPI_Datatype datatype, MPI_Op op, int jrank,
         }
     }
     atomic_dv_record(datatype, op, any_errors, 1);
-    if (any_errors)
-        *validation_results |= 1;
+    if (any_errors) {
+        *validation_results |= 0x1;
+    } else {
+        *validation_results = 0x0;
+    }
     free(local_result_in_sysmem);
     free(local_addr_in_sysmem);
     return 0;
 
 nocheck:
     atomic_dv_record(datatype, op, 0, 0);
-    *validation_results |= 2;
+    *validation_results |= 0x2;
     free(local_result_in_sysmem);
     free(local_addr_in_sysmem);
     return 0;

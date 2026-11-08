@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU MPI%s Multi-threaded Latency Test"
 /*
- * Copyright (c) 2002-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2002-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -579,6 +579,8 @@ void omb_lat_mt_session_finalize(omb_mpi_init_data omb_session_h)
         MPI_CHECK(MPI_Comm_free(&omb_session_h.omb_comm));
         MPI_CHECK(MPI_Session_finalize(&omb_session_h.omb_shandle));
 #endif
+    } else {
+        MPI_CHECK(MPI_Finalize());
     }
 }
 /* vi: set sw=4 sts=4 tw=80: */

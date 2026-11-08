@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU OpenSHMEM Put_nb Message Rate Test"
 /*
- * Copyright (c) 2002-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2002-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)

@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU " OMB_XCCL_TYPE_STR "%s Bandwidth Test"
 /*
- * Copyright (c) 2002-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2002-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
                     NCCL_CHECK(omb_xccl_interface->ncclSend(
                         s_buf, size, ncclChar, peer, nccl_comm, nccl_stream));
                 }
-                omb_xccl_interface->synchronize_xccl_stream(nccl_stream);
+                omb_xccl_interface->synchronize_xccl_stream();
                 NCCL_CHECK(omb_xccl_interface->ncclRecv(
                     r_buf, 1, ncclChar, peer, nccl_comm, nccl_stream));
                 if (i >= options.skip) {
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
                     NCCL_CHECK(omb_xccl_interface->ncclRecv(
                         r_buf, size, ncclChar, peer, nccl_comm, nccl_stream));
                 }
-                omb_xccl_interface->synchronize_xccl_stream(nccl_stream);
+                omb_xccl_interface->synchronize_xccl_stream();
                 NCCL_CHECK(omb_xccl_interface->ncclSend(
                     s_buf, 1, ncclChar, peer, nccl_comm, nccl_stream));
             }

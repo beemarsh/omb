@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU MPI_Put%s Bandwidth Test"
 /*
- * Copyright (c) 2003-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2003-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)

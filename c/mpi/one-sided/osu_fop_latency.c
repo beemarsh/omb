@@ -1,6 +1,6 @@
 #define BENCHMARK "OSU MPI_Fetch_and_op%s latency Test"
 /*
- * Copyright (c) 2003-2025 the Network-Based Computing Laboratory
+ * Copyright (c) 2003-2026 the Network-Based Computing Laboratory
  * (NBCL), The Ohio State University.
  *
  * Contact: Dr. D. K. Panda (panda@cse.ohio-state.edu)
@@ -10,7 +10,9 @@
  */
 
 #include <osu_util_mpi.h>
-#include <errno.h>
+
+#define VALIDATION_FAILED  0x1
+#define VALIDATION_SKIPPED 0x2
 
 double t_start = 0.0, t_end = 0.0;
 uint64_t *sbuf = NULL, *tbuf = NULL, *win_base = NULL;
@@ -20,6 +22,7 @@ MPI_Datatype mpi_type_list[OMB_NUM_DATATYPES];
 MPI_Comm omb_comm = MPI_COMM_NULL;
 
 void print_latency(int, int, float, struct omb_stat_t);
+void gather_validation(int, int);
 void run_fop_with_lock(int rank, enum WINDOW win_type, MPI_Datatype data_type,
                        MPI_Op op);
 void run_fop_with_fence(int rank, enum WINDOW win_type, MPI_Datatype data_type,
@@ -179,15 +182,19 @@ void print_latency(int rank, int size, float latency_factor,
                    struct omb_stat_t omb_stat)
 {
     char *validation_string;
-    if (rank != 0)
+    gather_validation(rank, 2);
+
+    if (rank != 0) {
         return;
+    }
     if (options.validate) {
-        if (2 & validation_error_flag)
+        if (VALIDATION_SKIPPED & validation_error_flag) {
             validation_string = "skipped";
-        else if (1 & validation_error_flag)
+        } else if (VALIDATION_FAILED & validation_error_flag) {
             validation_string = "failed";
-        else
+        } else {
             validation_string = "passed";
+        }
 
         fprintf(stdout, "%-*d%*.*f%*s", 10, size, FIELD_WIDTH, FLOAT_PRECISION,
                 (t_end - t_start) * 1.0e6 * latency_factor / options.iterations,
@@ -840,4 +847,24 @@ void run_fop_with_pscw(int rank, enum WINDOW win_type, MPI_Datatype data_type,
     free_atomic_memory(sbuf, win_base, tbuf, NULL, win_type, win, rank);
     free(omb_lat_arr);
 }
+
+void gather_validation(int rank, int nranks)
+{
+    int gathered_flags[nranks];
+    int i = 0;
+
+    if (!options.validate) {
+        return;
+    }
+
+    MPI_CHECK(MPI_Gather(&validation_error_flag, 1, MPI_INT, &gathered_flags, 1,
+                         MPI_INT, 0, MPI_COMM_WORLD));
+    if (rank == 0) {
+        validation_error_flag = 0;
+        for (i = 0; i < nranks; i++) {
+            validation_error_flag |= gathered_flags[i];
+        }
+    }
+}
+
 /* vi: set sw=4 sts=4 tw=80: */
