@@ -1478,6 +1478,9 @@ int process_options(int argc, char *argv[])
                 } else if (0 == strncasecmp(optarg, "MPI_DOUBLE", 10)) {
                     options.omb_dtype_list[options.omb_dtype_itr++] =
                         OMB_DOUBLE;
+                } else if (0 == strncasecmp(optarg, "MPI_BFLOAT16", 12)) {
+                    options.omb_dtype_list[options.omb_dtype_itr++] =
+                        OMB_BFLOAT16;
                 } else if (0 == strncasecmp(optarg, "ALL", 3)) {
                     options.omb_dtype_list[options.omb_dtype_itr++] = OMB_CHAR;
                     options.omb_dtype_list[options.omb_dtype_itr++] = OMB_INT;

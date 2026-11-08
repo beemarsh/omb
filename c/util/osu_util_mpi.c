@@ -1010,6 +1010,24 @@ void omb_populate_mpi_type_list(MPI_Datatype *mpi_type_list)
             case OMB_DOUBLE:
                 mpi_type_list[i] = MPI_DOUBLE;
                 break;
+            case OMB_BFLOAT16:
+#if defined(MPIX_BFLOAT16)
+                mpi_type_list[i] = MPIX_BFLOAT16;
+#elif defined(MPIX_C_FLOAT16)
+                mpi_type_list[i] = MPIX_C_FLOAT16;
+#else
+                OMB_ERROR_EXIT("MPI library does not define MPIX_BFLOAT16 or"
+                               " MPIX_C_FLOAT16");
+#endif
+                if (MPI_DATATYPE_NULL == mpi_type_list[i]) {
+                    OMB_ERROR_EXIT("bfloat16 datatype is not supported by"
+                                   " this MPI library");
+                }
+                if (options.validate) {
+                    OMB_ERROR_EXIT("Validation is not supported for"
+                                   " MPI_BFLOAT16");
+                }
+                break;
             default:
                 OMB_ERROR_EXIT("Unknown data type");
                 break;

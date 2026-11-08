@@ -40,6 +40,25 @@ void omb_force_accelerator()
     }
 }
 
+/* Switch to bfloat16 when "-T mpi_bfloat16" is passed; otherwise leave the
+ * benchmark's default datatype untouched. */
+void omb_xccl_select_dtype(int rank, ncclDataType_t *dtype, size_t *dtype_size)
+{
+    if (OMB_BFLOAT16 != options.omb_dtype_list[0]) {
+        return;
+    }
+#ifdef OMB_XCCL_BFLOAT16
+    *dtype = OMB_XCCL_BFLOAT16;
+    *dtype_size = 2;
+    if (0 == rank) {
+        fprintf(stdout, "# Datatype: ncclBfloat16.\n");
+        fflush(stdout);
+    }
+#else
+    OMB_ERROR_EXIT(OMB_XCCL_TYPE_STR " library does not support ncclBfloat16");
+#endif
+}
+
 omb_xccl_int_t *omb_xccl_interface_alloc()
 {
     omb_xccl_int_t *omb_xccl_int = malloc(sizeof(omb_xccl_int_t));

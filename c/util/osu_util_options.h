@@ -86,8 +86,8 @@
     OMBOP__ACCEL__COLLECTIVE__NHBR_GATHER
 #define OMBOP__COLLECTIVE__BARRIER           "+:hvfm:i:x:a:c::u:G:P:Iz::"
 #define OMBOP__ACCEL__COLLECTIVE__BARRIER    "+:d:hvfm:i:x:a:c::u:G:Iz::"
-#define OMBOP__COLLECTIVE__LAT               "+:hvfm:i:x:a:z::"
-#define OMBOP__ACCEL__COLLECTIVE__LAT        "+:d:hvfm:i:x:a:z::"
+#define OMBOP__COLLECTIVE__LAT               "+:hvfm:i:x:a:z::T:"
+#define OMBOP__ACCEL__COLLECTIVE__LAT        "+:d:hvfm:i:x:a:z::T:"
 #define OMBOP__COLLECTIVE__ALL_REDUCE        "+:hvfm:i:x:a:c::u:G:P:T:Ilz::"
 #define OMBOP__ACCEL__COLLECTIVE__ALL_REDUCE "+:d:hvfm:i:x:a:c::u:G:T:Ilz::"
 #define OMBOP__COLLECTIVE__REDUCE            OMBOP__COLLECTIVE__ALL_REDUCE "k:"
@@ -252,7 +252,11 @@
            "~~-N cart:<num of dimentions:radius>   //Cartesian"                \
            "~~-N graph:<adjacency graph file>      //Graph"},                  \
      {'T', "[all,mpi_char,mpi_int,mpi_float] - Set MPI_TYPE . "                \
-           "Default:MPI_CHAR. Reduction defaults: MPI_INT"},                   \
+           "Default:MPI_CHAR. Reduction defaults: MPI_INT"                     \
+           "~~mpi_bfloat16 - MPIX_BFLOAT16 (or MPIX_C_FLOAT16 if "             \
+           "MPIX_BFLOAT16 is unavailable)."                                    \
+           "~~NCCL/RCCL reduction benchmarks: mpi_bfloat16 uses "              \
+           "ncclBfloat16. Default: ncclFloat"},                                \
      {'I', "Enable session based MPI initialization."},                        \
      {'l', "Run benchmark with MPI_IN_PLACE support."},                        \
      {'z', "Print tail latencies."                                             \

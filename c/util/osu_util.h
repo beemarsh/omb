@@ -333,7 +333,14 @@ typedef struct omb_nhbrhd_type_parameters {
 extern char const *win_info[20];
 extern char const *sync_info[20];
 
-enum omb_dtypes_t { OMB_DTYPE_NULL, OMB_CHAR, OMB_INT, OMB_FLOAT, OMB_DOUBLE };
+enum omb_dtypes_t {
+    OMB_DTYPE_NULL,
+    OMB_CHAR,
+    OMB_INT,
+    OMB_FLOAT,
+    OMB_DOUBLE,
+    OMB_BFLOAT16
+};
 
 struct options_t {
     enum accel_type accel;

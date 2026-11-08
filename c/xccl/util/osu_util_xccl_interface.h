@@ -33,6 +33,19 @@
 #include "osu_util_mpi.h"
 #include OMB_XCCL_INCLUDE
 
+/* ncclBfloat16 is an enum value, not a macro, so it cannot be #ifdef'd.
+ * RCCL always declares it (RCCL_BFLOAT16) and so does NCCL >= 2.24. NCCL
+ * 2.10-2.23 declare it only if __CUDA_BF16_TYPES_EXIST__ is set, which
+ * cuda_bf16.h does for C++ only; for C builds use its fixed ABI value (9). */
+#if defined(RCCL_BFLOAT16) ||                                                  \
+    (NCCL_MAJOR > 2 || (NCCL_MAJOR == 2 && NCCL_MINOR >= 24)) ||               \
+    (defined(__CUDA_BF16_TYPES_EXIST__) && NCCL_MAJOR == 2 &&                  \
+     NCCL_MINOR >= 10)
+#define OMB_XCCL_BFLOAT16 ncclBfloat16
+#elif NCCL_MAJOR == 2 && NCCL_MINOR >= 10
+#define OMB_XCCL_BFLOAT16 ((ncclDataType_t)9)
+#endif
+
 #define OSU_NCCL_REDUCE_PARAM                                                  \
     const void *sendbuff, void *recvbuff, size_t count,                        \
         ncclDataType_t datatype, ncclRedOp_t op, int root, ncclComm_t comm,    \
@@ -108,6 +121,8 @@ omb_xccl_int_t *omb_xccl_interface_inject();
 omb_xccl_int_t *omb_xccl_interface_alloc();
 void omb_xccl_interface_free(omb_xccl_int_t *i);
 void omb_force_accelerator();
+void omb_xccl_select_dtype(int rank, ncclDataType_t *dtype,
+                           size_t *dtype_size);
 
 /* ============================================================ */
 /* Core variables */

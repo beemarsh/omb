@@ -18,6 +18,8 @@ int main(int argc, char *argv[])
     double timer = 0.0;
     double avg_time = 0.0, max_time = 0.0, min_time = 0.0;
     float *sendbuf = NULL, *recvbuf = NULL;
+    ncclDataType_t omb_xccl_dtype = ncclFloat;
+    size_t omb_xccl_dtype_size = sizeof(float);
     int po_ret = 0;
     int errors = 0;
     size_t bufsize = 0;
@@ -71,7 +73,8 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    options.min_message_size /= sizeof(float);
+    omb_xccl_select_dtype(rank, &omb_xccl_dtype, &omb_xccl_dtype_size);
+    options.min_message_size /= omb_xccl_dtype_size;
     if (options.min_message_size < MIN_MESSAGE_SIZE) {
         options.min_message_size = MIN_MESSAGE_SIZE;
     }
@@ -79,14 +82,16 @@ int main(int argc, char *argv[])
     omb_xccl_interface->allocate_xccl_stream();
     omb_xccl_interface->create_xccl_comm(numprocs, rank);
 
-    bufsize = sizeof(float) * (options.max_message_size / sizeof(float));
+    bufsize = omb_xccl_dtype_size *
+              (options.max_message_size / omb_xccl_dtype_size);
     if (allocate_memory_coll((void **)&recvbuf, bufsize, options.accel)) {
         fprintf(stderr, "Could Not Allocate Memory [rank %d]\n", rank);
         MPI_CHECK(MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE));
     }
     set_buffer(recvbuf, options.accel, 1, bufsize);
 
-    bufsize = sizeof(float) * (options.max_message_size / sizeof(float));
+    bufsize = omb_xccl_dtype_size *
+              (options.max_message_size / omb_xccl_dtype_size);
     if (allocate_memory_coll((void **)&sendbuf, bufsize, options.accel)) {
         fprintf(stderr, "Could Not Allocate Memory [rank %d]\n", rank);
         MPI_CHECK(MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE));
@@ -101,7 +106,7 @@ int main(int argc, char *argv[])
     print_only_header(rank);
 
     for (size = options.min_message_size;
-         size * sizeof(float) <= options.max_message_size; size *= 2) {
+         size * omb_xccl_dtype_size <= options.max_message_size; size *= 2) {
         if (size > LARGE_MESSAGE_SIZE) {
             options.skip = options.skip_large;
             options.iterations = options.iterations_large;
@@ -112,9 +117,9 @@ int main(int argc, char *argv[])
         timer = 0.0;
         for (i = 0; i < options.iterations + options.skip; i++) {
             t_start = MPI_Wtime();
-            NCCL_CHECK(omb_xccl_interface->ncclReduce(sendbuf, recvbuf, size,
-                                                      ncclFloat, ncclSum, 0,
-                                                      nccl_comm, nccl_stream));
+            NCCL_CHECK(omb_xccl_interface->ncclReduce(
+                sendbuf, recvbuf, size, omb_xccl_dtype, ncclSum, 0, nccl_comm,
+                nccl_stream));
             omb_xccl_interface->synchronize_xccl_stream();
             t_stop = MPI_Wtime();
 
@@ -140,8 +145,8 @@ int main(int argc, char *argv[])
         avg_time = avg_time / numprocs;
         omb_stat = omb_get_stats(omb_lat_arr);
 
-        print_stats(rank, size * sizeof(float), avg_time, min_time, max_time,
-                    omb_stat);
+        print_stats(rank, size * omb_xccl_dtype_size, avg_time, min_time,
+                    max_time, omb_stat);
 
         MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
     }
