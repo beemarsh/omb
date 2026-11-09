@@ -37,6 +37,60 @@ static float a[DIM][DIM], x[DIM], y[DIM];
 #define CHAR_VALIDATION_MULTIPLIER   (char)7
 #define CHAR_RANGE                   (int)pow(2, __CHAR_BIT__)
 
+/*
+ * bfloat16 validation. bfloat16 has an 8-bit significand, so integers are
+ * exact only up to 256. Data movement validation values are kept in
+ * [0, BF16_VALIDATION_RANGE) so every value is exact and distinct.
+ * Reductions use power-of-two contributions: k * 2^e is exact for any
+ * k <= BF16_EXACT_SUM_RANKS, so every partial sum is exact whatever order
+ * the MPI library adds them in. Ranks beyond that contribute zero.
+ */
+#define BF16_VALIDATION_RANGE 256
+#define BF16_EXACT_SUM_RANKS  256
+#define BF16_MAX_EXPONENT     8
+
+static int omb_is_bf16(MPI_Datatype dtype)
+{
+#ifdef MPIX_BFLOAT16
+    return MPIX_BFLOAT16 == dtype;
+#else
+    return 0;
+#endif
+}
+
+static uint16_t omb_float_to_bf16(float f)
+{
+    uint32_t bits = 0;
+
+    memcpy(&bits, &f, sizeof(bits));
+    if ((bits & 0x7fffffffu) > 0x7f800000u) {
+        /* NaN: keep it a quiet NaN after truncation */
+        return (uint16_t)((bits >> 16) | 0x0040u);
+    }
+    /* round to nearest even */
+    bits += 0x7fffu + ((bits >> 16) & 1u);
+    return (uint16_t)(bits >> 16);
+}
+
+static float omb_bf16_to_float(uint16_t h)
+{
+    uint32_t bits = (uint32_t)h << 16;
+    float f = 0;
+
+    memcpy(&f, &bits, sizeof(f));
+    return f;
+}
+
+/* Value of element i after summing the contributions of num_contrib ranks */
+static uint16_t omb_bf16_reduce_value(int i, int iter, int num_contrib)
+{
+    int k = (num_contrib < BF16_EXACT_SUM_RANKS) ? num_contrib :
+                                                   BF16_EXACT_SUM_RANKS;
+
+    return omb_float_to_bf16((float)k *
+                             (float)(1 << ((i + iter) % BF16_MAX_EXPONENT)));
+}
+
 #ifdef _ENABLE_CUDA_
 CUcontext cuContext;
 #endif
@@ -1015,6 +1069,10 @@ void omb_populate_mpi_type_list(MPI_Datatype *mpi_type_list)
                 mpi_type_list[i] = MPIX_BFLOAT16;
 #elif defined(MPIX_C_FLOAT16)
                 mpi_type_list[i] = MPIX_C_FLOAT16;
+                if (options.validate) {
+                    OMB_ERROR_EXIT("Validation is not supported for the"
+                                   " MPIX_C_FLOAT16 fallback");
+                }
 #else
                 OMB_ERROR_EXIT("MPI library does not define MPIX_BFLOAT16 or"
                                " MPIX_C_FLOAT16");
@@ -1022,10 +1080,6 @@ void omb_populate_mpi_type_list(MPI_Datatype *mpi_type_list)
                 if (MPI_DATATYPE_NULL == mpi_type_list[i]) {
                     OMB_ERROR_EXIT("bfloat16 datatype is not supported by"
                                    " this MPI library");
-                }
-                if (options.validate) {
-                    OMB_ERROR_EXIT("Validation is not supported for"
-                                   " MPI_BFLOAT16");
                 }
                 break;
             default:
@@ -1372,7 +1426,14 @@ void set_buffer_dtype_reduce(void *buffer, int is_send_buf, size_t size,
     int val = 0;
     int num_elements = omb_get_num_elements(size, dtype);
     float *temp_buffer = malloc(size);
-    if (is_send_buf) {
+    if (is_send_buf && omb_is_bf16(dtype)) {
+        int rank = 0;
+        MPI_CHECK(MPI_Comm_rank(MPI_COMM_WORLD, &rank));
+        for (i = 0; i < num_elements; i++) {
+            ((uint16_t *)temp_buffer)[i] = omb_bf16_reduce_value(
+                i, iter, (rank < BF16_EXACT_SUM_RANKS) ? 1 : 0);
+        }
+    } else if (is_send_buf) {
         for (i = 0; i < num_elements; i++) {
             j = (i % 100);
             val = (j + 1) * (iter + 1);
@@ -1424,6 +1485,9 @@ void omb_assign_to_type(void *buf, int pos, int val, MPI_Datatype dtype)
         ((float *)buf)[pos] = (float)val * FLOAT_VALIDATION_MULTIPLIER;
     } else if (MPI_DOUBLE == dtype) {
         ((double *)buf)[pos] = (double)val * DOUBLE_VALIDATION_MULTIPLIER;
+    } else if (omb_is_bf16(dtype)) {
+        ((uint16_t *)buf)[pos] = omb_float_to_bf16(
+            (float)((unsigned int)val % BF16_VALIDATION_RANGE));
     } else {
         OMB_ERROR_EXIT("Invalid data type passed");
     }
@@ -1439,6 +1503,8 @@ int omb_get_num_elements(size_t size, MPI_Datatype dtype)
         return size / sizeof(ATOM_CTYPE_FOR_DMPI_DOUBLE);
     } else if (MPI_INT == dtype) {
         return size / sizeof(ATOM_CTYPE_FOR_DMPI_INT);
+    } else if (omb_is_bf16(dtype)) {
+        return size / sizeof(uint16_t);
     } else {
         OMB_ERROR_EXIT("Invalid datatype passed");
     }
@@ -1815,6 +1881,11 @@ uint8_t validate_data(void *r_buf, size_t size, int num_procs,
                         break;
                     }
                 }
+            } else if (omb_is_bf16(dtype)) {
+                if (memcmp(temp_r_buf, expected_buffer,
+                           num_elements * sizeof(uint16_t))) {
+                    error = 1;
+                }
             } else if (memcmp(temp_r_buf, expected_buffer, num_elements)) {
                 error = 1;
             }
@@ -2127,6 +2198,14 @@ int omb_validate_neighborhood_col(MPI_Comm comm, char *buffer, int indegree,
                     (double)expected_value * DOUBLE_VALIDATION_MULTIPLIER) {
                     errors = 1;
                 }
+            } else if (omb_is_bf16(dtype)) {
+                ((uint16_t *)log_buffer)[i] =
+                    ((uint16_t *)temp_r_buf)[l * num_elements + s];
+                omb_assign_to_type(expected_buffer, i, expected_value, dtype);
+                if (((uint16_t *)log_buffer)[i] !=
+                    ((uint16_t *)expected_buffer)[i]) {
+                    errors = 1;
+                }
             }
             i++;
         }
@@ -2221,6 +2300,14 @@ int validate_reduce_scatter(void *buffer, size_t size, int *recvcounts,
                 (double)val * DOUBLE_VALIDATION_MULTIPLIER) {
                 errors = 1;
             }
+        } else if (omb_is_bf16(dtype)) {
+            ((uint16_t *)expected_buffer)[l] =
+                omb_bf16_reduce_value(i, iter, num_procs);
+            ((uint16_t *)log_buffer)[l] = ((uint16_t *)temp_buffer)[i];
+            if (((uint16_t *)temp_buffer)[i] !=
+                ((uint16_t *)expected_buffer)[l]) {
+                errors = 1;
+            }
         }
     }
     if (1 == errors && options.log_validation) {
@@ -2272,7 +2359,12 @@ int validate_reduction(void *buffer, size_t size, int iter, int num_procs,
     for (i = 0; i < num_elements; i++) {
         j = (i % 100);
         val = (j + 1) * (iter + 1) * num_procs;
-        omb_assign_to_type(expected_buffer, i, val, dtype);
+        if (omb_is_bf16(dtype)) {
+            ((uint16_t *)expected_buffer)[i] =
+                omb_bf16_reduce_value(i, iter, num_procs);
+        } else {
+            omb_assign_to_type(expected_buffer, i, val, dtype);
+        }
     }
     if (dtype == MPI_FLOAT) {
         for (i = 0; i < num_elements; i++) {
@@ -2291,6 +2383,11 @@ int validate_reduction(void *buffer, size_t size, int iter, int num_procs,
                 errors = 1;
                 break;
             }
+        }
+    } else if (omb_is_bf16(dtype)) {
+        if (memcmp(temp_buffer, expected_buffer,
+                   num_elements * sizeof(uint16_t)) != 0) {
+            errors = 1;
         }
     } else {
         if (memcmp(temp_buffer, expected_buffer, size) != 0) {
@@ -2369,6 +2466,11 @@ int validate_collective(void *buffer, size_t size, int value1, int value2,
                 break;
             }
         }
+    } else if (omb_is_bf16(dtype)) {
+        if (memcmp(temp_buffer, expected_buffer,
+                   num_elements * value2 * sizeof(uint16_t)) != 0) {
+            errors = 1;
+        }
     } else {
         if (memcmp(temp_buffer, expected_buffer, size * value2) != 0) {
             errors = 1;
@@ -2413,6 +2515,8 @@ void validation_log(void *buffer, void *expected_buffer, size_t size,
         fprintf(log_file_fp, "Datatype: MPI_CHAR\n");
     } else if (MPI_SIGNED_CHAR == dtype) {
         fprintf(log_file_fp, "Datatype: MPI_SIGNED_CHAR\n");
+    } else if (omb_is_bf16(dtype)) {
+        fprintf(log_file_fp, "Datatype: MPIX_BFLOAT16\n");
     } else {
         OMB_ERROR_EXIT("Invalid MPI Datatype.");
     }
@@ -2452,6 +2556,15 @@ void validation_log(void *buffer, void *expected_buffer, size_t size,
                 fprintf(log_file_fp, "%-*d%*d%*d\n", 10, i, FIELD_WIDTH,
                         ((char *)expected_buffer)[i], FIELD_WIDTH,
                         ((char *)buffer)[i]);
+            }
+        }
+    } else if (omb_is_bf16(dtype)) {
+        for (i = 0; i < num_elements; i++) {
+            if (((uint16_t *)buffer)[i] != ((uint16_t *)expected_buffer)[i]) {
+                fprintf(log_file_fp, "%-*d%*f%*f\n", 10, i, FIELD_WIDTH,
+                        omb_bf16_to_float(((uint16_t *)expected_buffer)[i]),
+                        FIELD_WIDTH,
+                        omb_bf16_to_float(((uint16_t *)buffer)[i]));
             }
         }
     }
